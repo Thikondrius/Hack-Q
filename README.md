@@ -6,3 +6,5 @@
 Le projet utilise nodemon (Dès que du code change le fichier index.js est recompilé)
 et babel ( donc accès aux fonctionnalités es6 )
 
+Le fichier trainedata sert à tesseract pour la reconnaissance de texte anglais
+
