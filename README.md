@@ -5,6 +5,8 @@
 ```npm install```
 
 ```npm start ```
+ou 
+```npm start ./VotreCheminRelatifDimageHQ ```
 
 Le projet utilise nodemon (Dès que du code change le fichier de votre choix est recompilé)
 et babel ( donc accès aux fonctionnalités es6 )
