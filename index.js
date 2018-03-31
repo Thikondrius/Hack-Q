@@ -71,12 +71,14 @@ const processImage = (imagePath, cropConfig, isQuestion) => {
   });
 };
 
-//processQuestion
 let initialImage = INITIAL_IMAGE_PATH;
 if (process.argv[2]) {
   initialImage = process.argv[2];
+} else {
+  throw new Error("Veuillez renseigner un chemin vers l'image HQ à analyser");
 }
 
+//processQuestion
 processImage(
   initialImage,
   {
