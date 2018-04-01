@@ -6,7 +6,7 @@ import ocrSpaceApi from "ocr-space-api";
 import google from "google";
 import cheerio from "cheerio";
 //fichier d'entrée
-const INITIAL_IMAGE_PATH = "./images/q2.png";
+const INITIAL_IMAGE_PATH = "./images/q12.png";
 
 //OCR API
 const ocrURL = "https://api.ocr.space/parse/image";
@@ -37,32 +37,38 @@ const QUESTION_FILE_NAME_CROPED_IMAGE = "question_croped.png";
 
 let linkOpened = 0;
 const MAX_LINK_TO_OPEN_PER_ANSWER = 5;
+
+// Pour trier les réponses
 function compareAnswer(answerA, answerB) {
   if (answerA.score > answerB.score) return -1;
   if (answerA.score < answerB.score) return 1;
   return 0;
 }
-
+// Véirifie si chaque question à ouvert ses liens et affiche le récap des score par question
 function checkEnd() {
   if (linkOpened === MAX_LINK_TO_OPEN_PER_ANSWER * finalResult.answers.length) {
     finalResult.answers.map(a => console.log(a));
-
     let result = finalResult.answers.sort(compareAnswer);
     console.log("\n\nMeilleur réponse : ", result[0].content, "\n\n");
     console.timeEnd("duration");
   }
 }
+//retire des mot useless du string en parametre
 function keyword(s) {
   s = s.toLocaleLowerCase();
   let words = ["of", "the", "in", "on", "at", "to", "a", "is", "an"];
   const regex = new RegExp("\\b(" + words.join("|") + ")\\b", "g");
   return (s || "").replace(regex, "").replace(/[ ]{2,}/, " ");
 }
+
+// Parcours chaque lien
 function requestQuestionAndFindOccurenceOfAnswer(question, answer, index) {
   google.resultsPerPage = MAX_LINK_TO_OPEN_PER_ANSWER;
+
   const currentAnswer = keyword(answer.content.toLocaleLowerCase());
   google(question + " " + currentAnswer, function(err, res) {
     if (err) console.error(err);
+
     for (var i = 0; i < res.links.length; i++) {
       var link = res.links[i];
       if (link.href) {
@@ -70,12 +76,8 @@ function requestQuestionAndFindOccurenceOfAnswer(question, answer, index) {
           .get(link.href)
           .then(response => {
             linkOpened++;
-            const html = cheerio.load(response.data, {
-              normalizeWhitespace: true
-            });
-
             let count = 0;
-            // Test à la fois la chaine entiere et chaque morceaux
+            // Test à la fois la chaine entiere et chaque morceaux dans le résultat de la recherche
             const regex = new RegExp(currentAnswer, "g");
             count += (response.data.match(regex) || []).length;
             const splitedAnswer = currentAnswer.split(" ");
@@ -85,10 +87,9 @@ function requestQuestionAndFindOccurenceOfAnswer(question, answer, index) {
                 count += (response.data.match(regex2) || []).length;
               }
             });
-            //S'il y a + de mot dans une reponse le score explose donc on fait un ratio sur le nombre de mot
+            //S'il y a + de mot dans une reponse que dans une autre le score explose donc on fait un ratio sur le nombre de mot
             count = count / splitedAnswer.length;
             finalResult.answers[index].score += count;
-
             checkEnd();
           })
           .catch(err => {
@@ -121,6 +122,7 @@ function fillResultWithOCRData(parsedResult, isQuestion) {
     }
   }
   analysedElements++;
+  // Une fois aque les question et réponses ont été extraites, rechercher les occurences pour chaque réponse
   if (analysedElements === ELEMENT_TO_ANALYSE) {
     finalResult.answers.map((a, index) => {
       requestQuestionAndFindOccurenceOfAnswer(finalResult.question, a, index);
