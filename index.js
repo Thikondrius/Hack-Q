@@ -1,13 +1,15 @@
-console.time("duration");
-
 import PngCrop from "png-crop";
 import axios from "axios";
 import ocrSpaceApi from "ocr-space-api";
 import google from "google";
-import cheerio from "cheerio";
-//fichier d'entrée
-const INITIAL_IMAGE_PATH = "./images/q12.png";
-
+var exec = require("child_process").exec, child;
+const readline = require("readline"); //fichier d'entrée
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+const INITIAL_IMAGE_PATH = "./images/hq_image.png";
+let scriptCall = 0;
 //OCR API
 const ocrURL = "https://api.ocr.space/parse/image";
 const API_KEY = "597c38f59188957";
@@ -15,7 +17,7 @@ const LANGUAGE = "eng";
 const IMAGE_FORMAT = "image/png";
 
 // Objet résultat d'analyse
-const finalResult = {
+let finalResult = {
   question: undefined,
   answers: [
     { content: "", score: 0 },
@@ -28,8 +30,8 @@ const ELEMENT_TO_ANALYSE = 2;
 let analysedElements = 0;
 
 //Configuration pour les crops
-const ANSWER_CROP_CONFIG = { width: 626, height: 440, top: 516, left: 50 };
-const QUESTION_CROP_CONFIG = { width: 628, height: 278, top: 232, left: 50 };
+const QUESTION_CROP_CONFIG = { width: 388, height: 177, top: 161, left: 35 };
+const ANSWER_CROP_CONFIG = { width: 395, height: 271, top: 337, left: 27 };
 
 const PATH_TO_CROPED_IMAGES = "./images/cropedImages";
 const ANSWER_FILE_NAME_CROPED_IMAGE = "answer_croped.png";
@@ -37,7 +39,6 @@ const QUESTION_FILE_NAME_CROPED_IMAGE = "question_croped.png";
 
 let linkOpened = 0;
 const MAX_LINK_TO_OPEN_PER_ANSWER = 5;
-
 // Pour trier les réponses
 function compareAnswer(answerA, answerB) {
   if (answerA.score > answerB.score) return -1;
@@ -47,10 +48,22 @@ function compareAnswer(answerA, answerB) {
 // Véirifie si chaque question à ouvert ses liens et affiche le récap des score par question
 function checkEnd() {
   if (linkOpened === MAX_LINK_TO_OPEN_PER_ANSWER * finalResult.answers.length) {
-    finalResult.answers.map(a => console.log(a));
     let result = finalResult.answers.sort(compareAnswer);
-    console.log("\n\nMeilleur réponse : ", result[0].content, "\n\n");
-    console.timeEnd("duration");
+    console.log("\n\n\n\n\n\n\n\n\n\n\n\n\n\n****");
+    console.log("****");
+    console.log("****");
+    console.log("****            " + result[0].content);
+    console.log("****");
+    console.log("****");
+    console.log("****\n\n\n\n\n\n\n\n\n\n\n\n\n");
+    finalResult.answers.map(a => console.log(a));
+    console.log("\n\n");
+    console.timeEnd("duration" + scriptCall);
+    go();
+  } else {
+    let result = [...finalResult.answers];
+    result = result.sort(compareAnswer);
+    console.log("\n\nCurrent best : ", result[0].content);
   }
 }
 //retire des mot useless du string en parametre
@@ -94,7 +107,6 @@ function requestQuestionAndFindOccurenceOfAnswer(question, answer, index) {
           })
           .catch(err => {
             linkOpened++;
-            console.log("fail");
             checkEnd();
           });
       } else {
@@ -124,6 +136,7 @@ function fillResultWithOCRData(parsedResult, isQuestion) {
   analysedElements++;
   // Une fois aque les question et réponses ont été extraites, rechercher les occurences pour chaque réponse
   if (analysedElements === ELEMENT_TO_ANALYSE) {
+    console.log("Request http...");
     finalResult.answers.map((a, index) => {
       requestQuestionAndFindOccurenceOfAnswer(finalResult.question, a, index);
     });
@@ -138,18 +151,23 @@ function getTextFromImageUrl(imagePath, isQuestion) {
   };
   ocrSpaceApi
     .parseImageFromLocalFile(imagePath, options)
-    .then(parsedResult => fillResultWithOCRData(parsedResult, isQuestion))
+    .then(parsedResult => {
+      fillResultWithOCRData(parsedResult, isQuestion);
+    })
     .catch(err => console.log("ERROR:", err));
 }
 //crop un image selon son path et sa crop config, puis les sauvegarde
 function processImage(imagePath, cropConfig, isQuestion) {
   const resultPath = `${PATH_TO_CROPED_IMAGES}/${cropConfig.resultFilePath}`;
   PngCrop.crop(imagePath, resultPath, cropConfig.cropLocation, err => {
+    if (err) {
+      console.log("erreur crop", err);
+    }
     getTextFromImageUrl(resultPath, isQuestion);
   });
 }
 //Démarre le crop et l'analyse
-function analyseImage() {
+function analyseImages() {
   // Récupere le chemin de l'image à analyser en parametre, sinon prend une image par défaut.
   let initialImage = INITIAL_IMAGE_PATH;
   if (process.argv[2]) {
@@ -176,4 +194,31 @@ function analyseImage() {
   );
 }
 
-analyseImage();
+function cleanData() {
+  analysedElements = 0;
+  linkOpened = 0;
+  finalResult = {
+    question: undefined,
+    answers: [
+      { content: "", score: 0 },
+      { content: "", score: 0 },
+      { content: "", score: 0 }
+    ]
+  };
+}
+function go() {
+  scriptCall++;
+
+  cleanData();
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  rl.question("Appuis sur ENTRER pour analyser.", answer => {
+    console.time("duration" + scriptCall);
+    exec("screencapture -x -R517,45,458,815 ./images/hq_image.png;");
+    setTimeout(analyseImages, 300);
+    rl.close();
+  });
+}
+go();
